@@ -8,6 +8,8 @@ module Crecto
                 Crecto::Adapters::Mysql
               elsif DB.drivers.keys.includes?("postgres") || DB.drivers.keys.includes?("postgresql")
                 Crecto::Adapters::Postgres
+              elsif DB.drivers.keys.includes?("sqlite3")
+                Crecto::Adapters::Sqlite
               else
                 raise Crecto::InvalidAdapter.new("Invalid or no adapter specified")
               end

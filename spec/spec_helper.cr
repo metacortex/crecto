@@ -1,4 +1,4 @@
-require "pg"
+require "sqlite3"
 require "spec"
 require "../src/crecto"
 
