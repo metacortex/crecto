@@ -6,6 +6,8 @@ Database wrapper for Crystal.  Inspired by [Ecto](https://github.com/elixir-ecto
 
 [![Build Status](https://travis-ci.org/fridgerator/crecto.svg?branch=master)](https://travis-ci.org/fridgerator/crecto) [![Join the chat at https://gitter.im/crecto/Lobby](https://badges.gitter.im/crecto/Lobby.svg)](https://gitter.im/crecto/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
+#### [Docs](http://docs.crecto.com)
+
 ## Installation
 
 Add this to your application's `shard.yml`:
@@ -24,23 +26,37 @@ Include [crystal-pg](https://github.com/will/crystal-pg) in your project
 
 Make sure you have `ENV["PG_URL"]` set
 
+in your application:
+
+```
+require "pg"
+require "crecto"
+```
+
 #### Mysql
 
 Include [crystal-mysql](https://github.com/crystal-lang/crystal-mysql) in your project
 
 Make sure you have `ENV["MYSQL_URL"]` set
 
+in your application:
+
+```
+require "mysql"
+require "crecto"
+```
+
 ## TODO
 
 #### Roadmap (in no particular order)
 
-- [ ] `select` in query
 - [x] MySQL adapter
 - [ ] SQLite adapter
-- [ ] Choose adapter in config
 - [x] Associations
 - [x] Preload
-- [ ] Joins
+- [x] Joins
+- [ ] Association / dependent options (`dependent: :delete_all`, `dependent: :nilify_all`, etc)
+- [ ] Unique constraint
 
 ## Usage
 
@@ -149,72 +165,6 @@ users[0].posts # has_many relation is preloaded
 
 posts = Crecto::Repo.all(Post, Crecto::Query.new, preload: [:user])
 posts[0].user # belongs_to relation preloaded
-```
-
-## Performance
-
-#### crystal:
-
-* crystal 0.20.0
-
-`elapsed: 2.6528820` seconds
-
-```Crystal
-require "crecto"
-
-class User < Crecto::Model
-
-  schema "users" do
-    field :name, String
-    field :things, Int32
-    field :stuff, Int32, virtual: true
-    field :nope, Float64
-    field :yep, Bool
-    field :some_date, Time
-  en
-
-  validates :name,
-    presence: true,
-    inclusion: { in: ["fridge", "mcridge"] },
-    format: { pattern: /[*a-zA-Z]/ },
-    length: { min: 2, max: 10 }
-end
-
-start_time = Time.now
-10000.times do
-  user = User.new
-  user.name = "fridge"
-  changeset = User.changeset(user)
-  changeset = Crecto::Repo.insert(changeset)
-end
-end_time = Time.now
-puts "elapsed: #{end_time - start_time}"
-```
-
-#### Ruby / Rails
-
-* ruby 2.3.1
-* rails 5.0.0
-
-`elapsed: 14.624411` seconds
-
-```Ruby
-class User < ApplicationRecord
-  validates :name,
-    presence: true,
-    inclusion: { in: ["fridge", "mcridge"] },
-    format: { with: /[*a-zA-Z]/ },
-    length: { minimum: 2, maximum: 10 }
-end
-
-start_time = Time.now
-10000.times do
-  u = User.new
-  u.name = "fridge"
-  u.save
-end
-end_time = Time.now
-puts "elapsed: #{end_time-start_time}"
 ```
 
 ## Contributing

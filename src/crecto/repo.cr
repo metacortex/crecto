@@ -2,14 +2,17 @@ module Crecto
   # A repository maps to an underlying data store, controlled by the adapter.
   module Repo
     # Set Adapter
+
+    # :nodoc:
     ADAPTER = if DB.drivers.keys.includes?("mysql")
                 Crecto::Adapters::Mysql
-              else
-                DB.drivers.keys.includes?("postgres") || DB.drivers.keys.includes?("postgresql")
+              elsif DB.drivers.keys.includes?("postgres") || DB.drivers.keys.includes?("postgresql")
                 Crecto::Adapters::Postgres
+              else
+                raise Crecto::InvalidAdapter.new("Invalid or no adapter specified")
               end
 
-    # Return a list of `queryable` instances using the *query* param
+    # Return a list of *queryable* instances using *query*
     #
     # ```
     # query = Query.where(name: "fred")
@@ -21,69 +24,35 @@ module Crecto
 
       results = queryable.from_rs(q.as(DB::ResultSet))
 
-      if preload = opts[:preload]?
-        add_preloads(results, queryable, preload)
+      if query.preloads.any?
+        add_preloads(results, queryable, query.preloads)
       end
 
       results
     end
 
+    # Return a list of *queryable* instances
+    #
+    # ```
+    # user = Crecto::Repo.get(User, 1)
+    # posts = Repo.all(user, :post)
+    # ```
     def self.all(queryable_instance, association_name : Symbol)
       query = Crecto::Repo::Query.where(queryable_instance.class.foreign_key_for_association(association_name), queryable_instance.pkey_value)
       all(queryable_instance.class.klass_for_association(association_name), query)
     end
 
-    private def self.add_preloads(results, queryable, preloads)
-      preloads.each do |preload|
-        case queryable.association_type_for_association(preload)
-        when :has_many
-          has_many_preload(results, queryable, preload)
-        when :belongs_to
-          belongs_to_preload(results, queryable, preload)
-        end
-      end
-    end
-
+    # Returns a list of *queryable* instances.  Accepts an optional `query`
+    #
+    # ```
+    # users = Crecto::Repo.all(User)
+    # ```
     def self.all(queryable, query = Query.new)
       query = ADAPTER.run(:all, queryable, query).as(DB::ResultSet)
       queryable.from_rs(query)
     end
 
-    private def self.has_many_preload(results, queryable, preload)
-      ids = results.map(&.pkey_value)
-      query = Crecto::Repo::Query.where(queryable.foreign_key_for_association(preload), ids)
-      relation_items = all(queryable.klass_for_association(preload), query)
-      unless relation_items.nil?
-        relation_items = relation_items.group_by { |t| queryable.foreign_key_value_for_association(preload, t) }
-
-        results.each do |result|
-          if relation_items.has_key?(result.pkey_value)
-            items = relation_items[result.pkey_value]
-            queryable.set_value_for_association(preload, result, items.map { |i| i.as(Crecto::Model) })
-          end
-        end
-      end
-    end
-
-    private def self.belongs_to_preload(results, queryable, preload)
-      ids = results.map { |r| queryable.foreign_key_value_for_association(preload, r) }
-      query = Crecto::Repo::Query.where(id: ids)
-      relation_items = all(queryable.klass_for_association(preload), query)
-
-      unless relation_items.nil?
-        relation_items = relation_items.group_by { |t| t.pkey_value }
-
-        results.each do |result|
-          fkey = queryable.foreign_key_value_for_association(preload, result)
-          if relation_items.has_key?(fkey)
-            items = relation_items[fkey]
-            queryable.set_value_for_association(preload, result, items.map { |i| i.as(Crecto::Model) })
-          end
-        end
-      end
-    end
-
-    # Return a single insance of `queryable` by primary key with *id*.
+    # Return a single insance of *queryable* by primary key with *id*.
     #
     # ```
     # user = Repo.get(User, 1)
@@ -94,7 +63,7 @@ module Crecto
       results.first if results.any?
     end
 
-    # Return a single instance of `queryable` using the *query* param
+    # Return a single instance of *queryable* using the *query* param
     #
     # ```
     # user = Repo.get_by(User, name: "fred", age: 21)
@@ -251,12 +220,90 @@ module Crecto
       ADAPTER.run(:sql, sql, params)
     end
 
-    # Not done yet, placeohlder for associations
-    def self.preload
+    private def self.add_preloads(results, queryable, preloads)
+      preloads.each do |preload|
+        case queryable.association_type_for_association(preload)
+        when :has_many
+          has_many_preload(results, queryable, preload)
+        when :belongs_to
+          belongs_to_preload(results, queryable, preload)
+        end
+      end
     end
 
-    # Not done yet, placeohlder for associations
-    def self.load
+    private def self.has_many_preload(results, queryable, preload)
+      if queryable.through_key_for_association(preload)
+        join_through(results, queryable, preload)
+      else
+        join_single(results, queryable, preload)
+      end
+    end
+
+    private def self.join_single(results, queryable, preload)
+      ids = results.map(&.pkey_value)
+      query = Crecto::Repo::Query.where(queryable.foreign_key_for_association(preload), ids)
+      relation_items = all(queryable.klass_for_association(preload), query)
+      unless relation_items.nil?
+        relation_items = relation_items.group_by { |t| queryable.foreign_key_value_for_association(preload, t) }
+
+        results.each do |result|
+          if relation_items.has_key?(result.pkey_value)
+            items = relation_items[result.pkey_value]
+            queryable.set_value_for_association(preload, result, items.map { |i| i.as(Crecto::Model) })
+          end
+        end
+      end
+    end
+
+    private def self.join_through(results, queryable, preload)
+      ids = results.map(&.pkey_value)
+      join_query = Crecto::Repo::Query.where(queryable.foreign_key_for_association(preload), ids)
+      # UserProjects
+      join_table_items = all(queryable.klass_for_association(queryable.through_key_for_association(preload).as(Symbol)), join_query)
+      unless join_table_items.nil?
+        # array of Project id's
+        join_ids = join_table_items.map { |i| queryable.klass_for_association(preload).foreign_key_value_for_association(queryable.through_key_for_association(preload).as(Symbol), i) }
+        association_query = Crecto::Repo::Query.where(queryable.klass_for_association(preload).primary_key_field_symbol, join_ids)
+        # Projects
+        relation_items = all(queryable.klass_for_association(preload), association_query)
+
+        # UserProject grouped by user_id
+        join_table_items = join_table_items.group_by { |t| queryable.foreign_key_value_for_association(queryable.through_key_for_association(preload).as(Symbol), t) }
+
+        results.each do |result|
+          if join_table_items.has_key?(result.pkey_value)
+            join_items = join_table_items[result.pkey_value]
+
+            # set join table has_many assocation i.e. user.user_projects
+            queryable.set_value_for_association(queryable.through_key_for_association(preload).as(Symbol), result, join_items.map { |i| i.as(Crecto::Model) })
+
+            unless relation_items.nil?
+              queryable_relation_items = relation_items.select { |i| join_ids.includes?(i.pkey_value) }
+
+              # set association i.e. user.projects
+              queryable.set_value_for_association(preload, result, queryable_relation_items.map { |i| i.as(Crecto::Model) })
+            end
+          end
+        end
+      end
+    end
+
+    private def self.belongs_to_preload(results, queryable, preload)
+      ids = results.map { |r| queryable.foreign_key_value_for_association(preload, r) }
+      query = Crecto::Repo::Query.where(id: ids)
+      relation_items = all(queryable.klass_for_association(preload), query)
+
+      unless relation_items.nil?
+        relation_items = relation_items.group_by { |t| t.pkey_value }
+
+        results.each do |result|
+          fkey = queryable.foreign_key_value_for_association(preload, result)
+          if relation_items.has_key?(fkey)
+            items = relation_items[fkey]
+            queryable.set_value_for_association(preload, result, items.map { |i| i.as(Crecto::Model) })
+          end
+        end
+      end
     end
   end
 end
