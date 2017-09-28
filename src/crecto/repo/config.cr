@@ -39,6 +39,13 @@ module Crecto
         @crecto_db ||= DB.open(database_url).as(DB::Database)
       end
 
+      def reset_connection
+        if @@crecto_db
+          @@crecto_db.not_nil!.close
+          @@crecto_db = nil
+        end
+      end
+
       private def set_url_query_string(io)
         io << "?initial_pool_size=#{@initial_pool_size}"
         io << "&max_pool_size=#{@max_pool_size}"

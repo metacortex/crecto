@@ -13,6 +13,10 @@ module Crecto
       @@config
     end
 
+    def reset_connection
+      @@config.reset_connection
+    end
+
     # Return a list of *queryable* instances using *query*
     #
     # ```
