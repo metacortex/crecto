@@ -40,9 +40,9 @@ module Crecto
       end
 
       def reset_connection
-        if @@crecto_db
-          @@crecto_db.not_nil!.close
-          @@crecto_db = nil
+        if @crecto_db
+          @crecto_db.not_nil!.close
+          @crecto_db = nil
         end
       end
 
