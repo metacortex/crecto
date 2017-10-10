@@ -1074,13 +1074,37 @@ describe Crecto do
       it "should insert with the generated id" do
         id = SecureRandom.uuid
         user = UserUUID.new
-        user.name = "test"
+        user.name = "te'st"
         user.uuid = id
 
         changeset = Repo.insert(user)
 
         changeset.errors.any?.should eq false
         changeset.instance.uuid.should eq id
+      end
+
+      it "should update a user with a generated id" do
+        id = SecureRandom.uuid
+        user = UserUUID.new
+        user.name = "te'st"
+        user.uuid = id
+        user = Repo.insert(user).instance
+
+        user.name = "fred"
+        changeset = Repo.update(user)
+        changeset.errors.any?.should eq false
+        changeset.instance.name.should eq "fred"
+      end
+
+      it "should delete a user with a generated id" do
+        id = SecureRandom.uuid
+        user = UserUUID.new
+        user.name = "te'st"
+        user.uuid = id
+        user = Repo.insert(user).instance
+
+        changeset = Repo.delete(user)
+        changeset.errors.any?.should eq false
       end
     end
   end
