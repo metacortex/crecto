@@ -17,6 +17,16 @@ alias TestFloat = PG::Numeric | Float64
 Query = Crecto::Repo::Query
 Multi = Crecto::Multi
 
+class DefaultValue < Crecto::Model
+  schema "default_values" do
+    field :default_string, String, default: "should set default"
+    field :default_int, Int32, default: 64
+    field :default_float, Float64, default: 3.14
+    field :default_time, Time, default: Time.now
+    field :default_bool, Bool, default: false
+  end
+end
+
 class User < Crecto::Model
   schema "users" do
     field :name, String
@@ -73,6 +83,15 @@ class UserLargeDefaults < Crecto::Model
   schema "users_large_defaults" do
     field :id, Int32 | Int64, primary_key: true
     field :name, String
+  end
+end
+
+class UserArrays < Crecto::Model
+  schema "users_arrays" do
+    field :string_array, Array(String)
+    field :int_array, Array(Int32)
+    field :float_array, Array(Float64)
+    field :bool_array, Array(Bool)
   end
 end
 
