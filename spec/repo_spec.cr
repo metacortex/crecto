@@ -1,4 +1,4 @@
-require "secure_random"
+require "uuid"
 require "./spec_helper"
 require "./helper_methods"
 
@@ -16,7 +16,7 @@ describe Crecto do
 
     describe "#raw_exec" do
       it "should run the exec query directly on the connection" do
-        name = SecureRandom.hex(8)
+        name = Random::Secure.hex(8)
         x = Repo.config.adapter == Crecto::Adapters::Postgres ? "$1" : "?"
         Repo.raw_exec("INSERT INTO users (name) VALUES (#{x})", name)
         user = Repo.get_by!(User, name: name)
@@ -936,6 +936,16 @@ describe Crecto do
 
         Repo.all(User, Query.join(:posts).join(:addresses))
       end
+
+      it "should join has_many associations" do
+        query = Query.join(:user_projects)
+        Repo.all(User, query).should be_a(Array(User))
+      end
+
+      it "should join belongs_to associations" do
+        query = Query.join(:user)
+        Repo.all(UserProject, query).should be_a(Array(UserProject))
+      end
     end
 
     describe "#distinct" do
@@ -1128,7 +1138,7 @@ describe Crecto do
 
     describe "user with uuid string as primary key" do
       it "should insert with the generated id" do
-        id = SecureRandom.uuid
+        id = UUID.random.to_s
         user = UserUUID.new
         user.name = "te'st"
         user.uuid = id
@@ -1140,7 +1150,7 @@ describe Crecto do
       end
 
       it "should update a user with a generated id" do
-        id = SecureRandom.uuid
+        id = UUID.random.to_s
         user = UserUUID.new
         user.name = "te'st"
         user.uuid = id
@@ -1153,7 +1163,7 @@ describe Crecto do
       end
 
       it "should delete a user with a generated id" do
-        id = SecureRandom.uuid
+        id = UUID.random.to_s
         user = UserUUID.new
         user.name = "te'st"
         user.uuid = id

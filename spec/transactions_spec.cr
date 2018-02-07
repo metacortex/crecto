@@ -28,6 +28,12 @@ describe Crecto do
       end
 
       it "with a valid delete, should delete the record" do
+        Repo.delete_all(Post)
+        Repo.delete_all(User)
+
+        puts "Posts : #{Repo.all(Post).size}"
+        puts "Users : #{Repo.all(User).size}"
+
         user = quick_create_user("this should delete")
 
         multi = Multi.new

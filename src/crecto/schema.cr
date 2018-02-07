@@ -44,13 +44,13 @@ module Crecto
     CRECTO_PRIMARY_KEY_FIELD_TYPE = "PkeyValue"
     # :nodoc:
     CRECTO_ASSOCIATIONS = Array(NamedTuple(association_type: Symbol,
-    key: Symbol,
-    this_klass: Model.class,
-    klass: Model.class,
-    foreign_key: Symbol,
-    foreign_key_value: Proc(Model, PkeyValue),
-    set_association: Proc(Model, (Array(Crecto::Model) | Model), Nil),
-    through: Symbol?)).new
+      key: Symbol,
+      this_klass: Model.class,
+      klass: Model.class,
+      foreign_key: Symbol,
+      foreign_key_value: Proc(Model, PkeyValue),
+      set_association: Proc(Model, (Array(Crecto::Model) | Model), Nil),
+      through: Symbol?)).new
 
     # schema block macro
     macro schema(table_name, **opts, &block)
@@ -182,6 +182,13 @@ module Crecto
       DB.mapping({ {{mapping.uniq.join(", ").id}} }, false)
       JSON.mapping({ {{mapping.uniq.join(", ").id}} })
 
+      # Builds fields' cast typed method
+      {% for field in CRECTO_FIELDS %}
+        def {{field[:name].id}}!
+          @{{field[:name].id}}.as({{field[:type].id}})
+        end
+      {% end %}
+
       {% for field in json_fields %}
         def {{field.id}}=(val)
           json = Crecto::Helpers.jsonize(val)
@@ -220,11 +227,11 @@ module Crecto
 
 
       # Builds a hash from all `CRECTO_FIELDS` defined
-      def to_query_hash
+      def to_query_hash(include_virtual=false)
         query_hash = {} of Symbol => DbValue | ArrayDbValue
 
         {% for field in CRECTO_FIELDS %}
-          if @@changeset_fields.includes?({{field[:name]}})
+          if include_virtual || @@changeset_fields.includes?({{field[:name]}})
             query_hash[{{field[:name]}}] = self.{{field[:name].id}}
             query_hash[{{field[:name]}}] = query_hash[{{field[:name]}}].as(Time).to_utc if query_hash[{{field[:name]}}].is_a?(Time) && query_hash[{{field[:name]}}].as(Time).local?
           end
