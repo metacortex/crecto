@@ -115,7 +115,7 @@ module Crecto
 
       def aggregate(conn, queryable, ag, field, query : Crecto::Repo::Query)
         params = [] of DbValue | Array(DbValue)
-        q = [build_aggregate_query(queryable, ag, field)]
+        q = [build_aggregate_query(queryable, ag, field, query)]
         q.push joins(queryable, query, params) if query.joins.any?
         q.push wheres(queryable, query, params) if query.wheres.any?
         q.push or_wheres(queryable, query, params) if query.or_wheres.any?
@@ -130,8 +130,12 @@ module Crecto
         results
       end
 
-      private def build_aggregate_query(queryable, ag, field)
-        "SELECT #{ag}(#{queryable.table_name}.#{field}) from #{queryable.table_name}"
+      private def build_aggregate_query(queryable, ag, field, query=nil)
+        if query && query.distincts
+          "SELECT #{ag}(DISTINCT #{query.distincts}) from #{queryable.table_name}"
+        else
+          "SELECT #{ag}(#{queryable.table_name}.#{field}) from #{queryable.table_name}"
+        end
       end
 
       private def all(conn, queryable, query)
