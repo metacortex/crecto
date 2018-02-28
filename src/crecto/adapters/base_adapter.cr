@@ -152,10 +152,10 @@ module Crecto
         q.push joins(queryable, query, params) if query.joins.any?
         q.push wheres(queryable, query, params) if query.wheres.any?
         q.push or_wheres(queryable, query, params) if query.or_wheres.any?
+        q.push "GROUP BY #{query.group_bys}" if !query.group_bys.nil?
         q.push order_bys(query) if query.order_bys.any?
         q.push limit(query) unless query.limit.nil?
         q.push offset(query) unless query.offset.nil?
-        q.push "GROUP BY #{query.group_bys}" if !query.group_bys.nil?
 
         execute(conn, position_args(q.join(" ")), params)
       end
