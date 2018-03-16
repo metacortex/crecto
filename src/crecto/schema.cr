@@ -252,7 +252,7 @@ module Crecto
         query_hash
       end
 
-      def update_from_hash(hash : Hash(String, DbValue))
+      def update_from_hash(hash : Hash(String, DbValue)|Hash(String,JSON::Type))
         hash.each do |key, value|
           value = value.to_s
           case key.to_s
