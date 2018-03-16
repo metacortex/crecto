@@ -254,14 +254,15 @@ module Crecto
 
       def update_from_hash(hash : Hash(String, DbValue))
         hash.each do |key, value|
+          value = value.to_s
           case key.to_s
           {% for field in CRECTO_FIELDS %}
           when "{{field[:name].id}}"
-            if value.to_s.empty?
+            if value.empty?
               @{{field[:name].id}} = nil
             else
               {% if field[:type].id.stringify == "String" %}
-                @{{field[:name].id}} = value.to_s
+                @{{field[:name].id}} = value
               {% elsif field[:type].id.stringify == "Int16" %}
                 @{{field[:name].id}} = value.to_i16 if value.to_i16?
               {% elsif field[:type].id.stringify.includes?("Int") %}
